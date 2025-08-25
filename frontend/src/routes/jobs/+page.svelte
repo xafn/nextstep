@@ -20,108 +20,36 @@
     FileText,
   } from "lucide-svelte";
   import { onMount } from "svelte";
+  import { jobsStore } from "$lib/stores/jobs.js";
+  import { auth } from "$lib/stores/auth.js";
+  import NotificationToast from "$lib/components/NotificationToast.svelte";
+  import {
+    addXP,
+    unlockAchievement,
+    incrementApplications,
+  } from "$lib/stores/gamification.js";
 
-  // Sample job data - will come from Django backend
-  let jobs = [
-    {
-      id: 1,
-      title: "Lawn Mowing & Yard Work",
-      company: "Green Thumb Services",
-      location: "Scarborough, ON",
-      hourlyRate: "$20-25",
-      jobType: "Gig",
-      schedule: "Flexible",
-      rating: 4.6,
-      reviewCount: 34,
-      description:
-        "Help homeowners maintain their lawns and gardens. Perfect for teens who enjoy outdoor work and want flexible hours.",
-      requirements: [
-        "Must be 14+",
-        "Reliable transportation",
-        "Basic lawn care knowledge",
-      ],
-      postedDate: "2 days ago",
-      tags: ["Outdoors", "Flexible", "Physical Work"],
-      featured: true,
-    },
-    {
-      id: 2,
-      title: "Private Math Tutor",
-      company: "Toronto Math Academy",
-      location: "North York, ON",
-      hourlyRate: "$25-35",
-      jobType: "Part-time",
-      schedule: "Part-time",
-      rating: 4.8,
-      reviewCount: 42,
-      description:
-        "Tutor students in math subjects from elementary to high school. Great opportunity for students who excel in mathematics.",
-      requirements: [
-        "Must be 16+",
-        "Strong math skills",
-        "Patient personality",
-      ],
-      postedDate: "1 week ago",
-      tags: ["Education", "Math", "Teaching"],
-    },
-    {
-      id: 3,
-      title: "Lifeguard",
-      company: "Toronto Community Centres",
-      location: "Etobicoke, ON",
-      hourlyRate: "$18-22",
-      jobType: "Part-time",
-      schedule: "Part-time",
-      rating: 4.4,
-      reviewCount: 28,
-      description:
-        "Ensure pool safety and assist swimmers. Perfect for strong swimmers who want to develop leadership skills.",
-      requirements: [
-        "Must be 16+",
-        "Lifeguard certification",
-        "Strong swimming ability",
-      ],
-      postedDate: "3 days ago",
-      tags: ["Safety", "Swimming", "Leadership"],
-    },
-    {
-      id: 4,
-      title: "Camp Counselor",
-      company: "High Park Nature Camp",
-      location: "Toronto, ON",
-      hourlyRate: "$16-20",
-      jobType: "Seasonal",
-      schedule: "Full-time",
-      rating: 4.7,
-      reviewCount: 56,
-      description:
-        "Lead outdoor activities and supervise children during summer camp. Great for nature lovers and outgoing teens.",
-      requirements: [
-        "Must be 16+",
-        "First aid certification preferred",
-        "Enthusiastic personality",
-      ],
-      postedDate: "5 days ago",
-      tags: ["Summer", "Education", "Outdoors"],
-      featured: true,
-    },
-    {
-      id: 5,
-      title: "Retail Assistant",
-      company: "Yorkdale Shopping Centre",
-      location: "Toronto, ON",
-      hourlyRate: "$15-18",
-      jobType: "Part-time",
-      schedule: "Part-time",
-      rating: 4.1,
-      reviewCount: 31,
-      description:
-        "Assist customers and maintain store appearance. Perfect opportunity to develop customer service and retail skills.",
-      requirements: ["Must be 15+", "Friendly attitude", "Available weekends"],
-      postedDate: "1 day ago",
-      tags: ["Retail", "Customer Service", "Shopping"],
-    },
-  ];
+  // Jobs from backend store
+  $: jobs = ($jobsStore.jobs || []).map((job) => ({
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    location: job.location,
+    hourlyRate: job.hourly_rate_display,
+    jobType: job.job_type
+      .replace("-", " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()),
+    schedule: job.schedule
+      .replace("-", " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()),
+    rating: job.rating,
+    reviewCount: job.review_count,
+    description: job.description,
+    requirements: job.requirements,
+    postedDate: job.posted_date_display,
+    tags: job.tags,
+    featured: job.featured,
+  }));
 
   let selectedJob: any = null;
   let searchQuery = "";
@@ -148,6 +76,32 @@
   let isSubmitting = false;
   let showSuccessModal = false;
   let showSearchSuggestions = false;
+
+  // Notification system
+  let notifications: Array<{
+    id: number;
+    type: string;
+    title: string;
+    message: string;
+    show: boolean;
+  }> = [];
+
+  function showNotification(type: string, title: string, message: string) {
+    const id = Date.now() + Math.random();
+    notifications = [
+      ...notifications,
+      { id, type, title, message, show: true },
+    ];
+
+    setTimeout(() => {
+      notifications = notifications.filter((n) => n.id !== id);
+    }, 6000);
+  }
+
+  function handleNotificationClose(event: CustomEvent<{ id: number }>) {
+    const { id } = event.detail;
+    notifications = notifications.filter((n) => n.id !== id);
+  }
 
   // Search suggestions based on available data
   const searchSuggestions = [
@@ -192,6 +146,9 @@
   ];
 
   function filterJobs() {
+    if (!jobs || jobs.length === 0) {
+      return [];
+    }
     return jobs.filter((job) => {
       // Search functionality - search in title, company, description, and tags
       const searchLower = searchQuery.toLowerCase();
@@ -337,23 +294,75 @@
   }
 
   async function submitApplication() {
+    if (!selectedJob || !$auth.isAuthenticated) {
+      return;
+    }
+
     isSubmitting = true;
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      await jobsStore.applyToJob(selectedJob.id, {
+        cover_letter: applicationData.coverLetter,
+        availability: applicationData.availability,
+        why_interested: applicationData.whyInterested,
+        relevant_experience: applicationData.relevantExperience,
+        questions: applicationData.questions || "",
+      });
 
-    isSubmitting = false;
-    showApplicationModal = false;
-    showSuccessModal = true;
+      isSubmitting = false;
+      showApplicationModal = false;
 
-    // Auto-hide success modal after 3 seconds
-    setTimeout(() => {
-      showSuccessModal = false;
-    }, 3000);
+      // Show success notification
+      showNotification(
+        "success",
+        "Application Submitted!",
+        `Your application for ${selectedJob.title} has been submitted successfully!`,
+      );
+
+      // Add XP for submitting application
+      addXP(75, $auth.user?.email);
+      showNotification(
+        "xp",
+        "XP Earned!",
+        "+75 XP for submitting your first application!",
+      );
+
+      // Increment applications count
+      incrementApplications($auth.user?.email);
+
+      // Check for first application achievement
+      unlockAchievement("first-application", $auth.user?.email);
+
+      // Reset application form
+      applicationData = {
+        coverLetter: "",
+        availability: [],
+        whyInterested: "",
+        relevantExperience: "",
+        questions: "",
+      };
+
+      // Reload applications to show the new one
+      await jobsStore.loadApplications();
+    } catch (error) {
+      isSubmitting = false;
+      console.error("Failed to submit application:", error);
+      showNotification(
+        "error",
+        "Application Failed",
+        "Failed to submit application. Please try again.",
+      );
+    }
   }
 
-  onMount(() => {
+  onMount(async () => {
     mounted = true;
+    console.log("Jobs page mounted, loading jobs...");
+
+    // Load jobs from backend
+    await jobsStore.loadJobs();
+    console.log("Jobs loaded, store state:", $jobsStore);
+    console.log("Jobs count:", $jobsStore.jobs?.length);
   });
 
   $: filteredJobs = filterJobs();
@@ -366,6 +375,20 @@
     content="Browse and apply to teen-friendly jobs in your area"
   />
 </svelte:head>
+
+<!-- Notification Toasts -->
+{#each notifications as notification (notification.id)}
+  <NotificationToast
+    type={notification.type}
+    title={notification.title}
+    message={notification.message}
+    show={notification.show}
+    on:close={() =>
+      handleNotificationClose({
+        detail: { id: notification.id },
+      } as CustomEvent<{ id: number }>)}
+  />
+{/each}
 
 <div class="job-board">
   <!-- Header -->

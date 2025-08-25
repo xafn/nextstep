@@ -157,10 +157,35 @@ export const pendingTasks = derived(gamificationStore, ($gamification) => {
 	return $gamification.tasks.filter(task => !task.completed);
 });
 
-// Load gamification data from localStorage
+// Load gamification data from localStorage (deprecated - use loadGamificationDataForUser instead)
 export function loadGamificationData(): void {
+	console.warn('loadGamificationData is deprecated. Use loadGamificationDataForUser instead.');
+}
+
+// Save gamification data to localStorage
+export function saveGamificationData(data: GamificationData, userEmail?: string): void {
 	if (typeof window !== 'undefined') {
-		const saved = localStorage.getItem('nextstep-gamification');
+		const key = userEmail ? `nextstep-gamification-${userEmail}` : 'nextstep-gamification';
+		localStorage.setItem(key, JSON.stringify(data));
+		gamificationStore.set(data);
+	}
+}
+
+// Reset gamification data for a specific user
+export function resetGamificationDataForUser(userEmail: string): void {
+	if (typeof window !== 'undefined') {
+		// Create a user-specific key
+		const userKey = `nextstep-gamification-${userEmail}`;
+		localStorage.setItem(userKey, JSON.stringify(defaultGamificationData));
+		gamificationStore.set(defaultGamificationData);
+	}
+}
+
+// Load gamification data for a specific user
+export function loadGamificationDataForUser(userEmail: string): void {
+	if (typeof window !== 'undefined') {
+		const userKey = `nextstep-gamification-${userEmail}`;
+		const saved = localStorage.getItem(userKey);
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
@@ -180,21 +205,18 @@ export function loadGamificationData(): void {
 				gamificationStore.set(merged);
 			} catch (error) {
 				console.error('Error loading gamification data:', error);
+				// If there's an error, reset to default
+				resetGamificationDataForUser(userEmail);
 			}
+		} else {
+			// No saved data for this user, use default
+			resetGamificationDataForUser(userEmail);
 		}
 	}
 }
 
-// Save gamification data to localStorage
-export function saveGamificationData(data: GamificationData): void {
-	if (typeof window !== 'undefined') {
-		localStorage.setItem('nextstep-gamification', JSON.stringify(data));
-		gamificationStore.set(data);
-	}
-}
-
 // Add XP and check for level ups
-export function addXP(amount: number): void {
+export function addXP(amount: number, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const newXP = current.xp + amount;
 		let newLevel = current.level;
@@ -206,13 +228,13 @@ export function addXP(amount: number): void {
 		}
 		
 		const updated = { ...current, xp: newXP, level: newLevel };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
 
 // Unlock achievement
-export function unlockAchievement(achievementId: string): void {
+export function unlockAchievement(achievementId: string, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const achievement = current.achievements.find(a => a.id === achievementId);
 		if (achievement && !achievement.unlocked) {
@@ -225,10 +247,10 @@ export function unlockAchievement(achievementId: string): void {
 				...current, 
 				achievements: updatedAchievements 
 			};
-			saveGamificationData(updated);
+			saveGamificationData(updated, userEmail);
 			
 			// Add XP reward
-			addXP(achievement.xpReward);
+			addXP(achievement.xpReward, userEmail);
 			
 			return updated;
 		}
@@ -237,7 +259,7 @@ export function unlockAchievement(achievementId: string): void {
 }
 
 // Complete task
-export function completeTask(taskId: string): void {
+export function completeTask(taskId: string, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const task = current.tasks.find(t => t.id === taskId);
 		if (task && !task.completed) {
@@ -250,10 +272,10 @@ export function completeTask(taskId: string): void {
 				...current, 
 				tasks: updatedTasks 
 			};
-			saveGamificationData(updated);
+			saveGamificationData(updated, userEmail);
 			
 			// Add XP reward
-			addXP(task.xpReward);
+			addXP(task.xpReward, userEmail);
 			
 			return updated;
 		}
@@ -262,7 +284,7 @@ export function completeTask(taskId: string): void {
 }
 
 // Add financial goal
-export function addFinancialGoal(goal: Omit<FinancialGoal, 'id'>): void {
+export function addFinancialGoal(goal: Omit<FinancialGoal, 'id'>, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const newGoal: FinancialGoal = {
 			...goal,
@@ -272,13 +294,13 @@ export function addFinancialGoal(goal: Omit<FinancialGoal, 'id'>): void {
 			...current,
 			financialGoals: [...current.financialGoals, newGoal]
 		};
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
 
 // Update financial goal progress
-export function updateFinancialGoalProgress(goalId: string, amount: number): void {
+export function updateFinancialGoalProgress(goalId: string, amount: number, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const updatedGoals = current.financialGoals.map(goal => {
 			if (goal.id === goalId) {
@@ -295,17 +317,17 @@ export function updateFinancialGoalProgress(goalId: string, amount: number): voi
 		});
 		
 		const updated = { ...current, financialGoals: updatedGoals };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
 
 // Delete financial goal
-export function deleteFinancialGoal(goalId: string): void {
+export function deleteFinancialGoal(goalId: string, userEmail?: string): void {
 	gamificationStore.update(current => {
 		const updatedGoals = current.financialGoals.filter(goal => goal.id !== goalId);
 		const updated = { ...current, financialGoals: updatedGoals };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
@@ -339,28 +361,28 @@ export function updateStreak(): void {
 }
 
 // Update application count
-export function incrementApplications(): void {
+export function incrementApplications(userEmail?: string): void {
 	gamificationStore.update(current => {
 		const updated = { ...current, totalApplications: current.totalApplications + 1 };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
 
 // Update interview count
-export function incrementInterviews(): void {
+export function incrementInterviews(userEmail?: string): void {
 	gamificationStore.update(current => {
 		const updated = { ...current, totalInterviews: current.totalInterviews + 1 };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }
 
 // Update jobs count
-export function incrementJobs(): void {
+export function incrementJobs(userEmail?: string): void {
 	gamificationStore.update(current => {
 		const updated = { ...current, totalJobs: current.totalJobs + 1 };
-		saveGamificationData(updated);
+		saveGamificationData(updated, userEmail);
 		return updated;
 	});
 }

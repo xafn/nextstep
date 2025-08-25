@@ -92,16 +92,23 @@ function createAuthStore() {
       }
     },
     initialize: async () => {
+      console.log('Initializing auth store...');
+      console.log('Is authenticated (token check):', AuthAPI.isAuthenticated());
+      
       // Check if user is authenticated via token
       if (AuthAPI.isAuthenticated()) {
         try {
+          console.log('Fetching user profile...');
           const profile = await AuthAPI.getProfile();
+          console.log('Profile fetched:', profile);
+          
           const user: User = {
             id: profile.id,
             email: profile.email,
             name: `${profile.first_name} ${profile.last_name}`.trim() || profile.email.split('@')[0]
           };
           
+          console.log('Setting authenticated user:', user);
           set({
             isAuthenticated: true,
             user,
@@ -117,6 +124,13 @@ function createAuthStore() {
             isLoading: false
           });
         }
+      } else {
+        console.log('No token found, user not authenticated');
+        set({
+          isAuthenticated: false,
+          user: null,
+          isLoading: false
+        });
       }
     },
     setLoading: (loading: boolean) => {

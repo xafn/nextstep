@@ -31,7 +31,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'apps.accounts',
-    # 'apps.jobs',         # <-- remove
+    'apps.jobs',         # <-- enable jobs app
     # 'apps.checkins',     # <-- remove
     'apps.resume.apps.ResumeConfig',         # <-- new app for admin grouping
     # 'apps.common',       # keep/remove as you wish

@@ -42,6 +42,7 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
+      
       const data = await response.json();
 
       if (!response.ok) {
@@ -56,6 +57,7 @@ class ApiClient {
         status: response.status,
       };
     } catch (error) {
+      console.error('API request error:', error);
       return {
         error: error instanceof Error ? error.message : 'Network error',
         status: 0,

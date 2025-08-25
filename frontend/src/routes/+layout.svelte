@@ -86,158 +86,156 @@
   />
 </svelte:head>
 
-{#if !isAuthPage}
-  <nav class="navbar" class:scrolled={isScrolled}>
-    <div class="container">
-      <div class="navbar-content">
-        <a
-          href="/"
-          class="logo"
-          class:long-pressing={longPressTimer !== null}
-          title="NextStep - Long press for testing UI"
-          on:mousedown={handleLogoMouseDown}
-          on:mouseup={handleLogoMouseUp}
-          on:mouseleave={handleLogoMouseLeave}
-          on:touchstart={handleLogoTouchStart}
-          on:touchend={handleLogoTouchEnd}
-        >
-          NextStep
+<nav class="navbar" class:scrolled={isScrolled}>
+  <div class="container">
+    <div class="navbar-content">
+      <a
+        href="/"
+        class="logo"
+        class:long-pressing={longPressTimer !== null}
+        title="NextStep - Long press for testing UI"
+        on:mousedown={handleLogoMouseDown}
+        on:mouseup={handleLogoMouseUp}
+        on:mouseleave={handleLogoMouseLeave}
+        on:touchstart={handleLogoTouchStart}
+        on:touchend={handleLogoTouchEnd}
+      >
+        NextStep
+      </a>
+
+      <!-- Desktop Navigation -->
+      <div class="nav-links desktop-nav">
+        <a href="/jobs" class="nav-link {isJobPage ? 'active' : ''}">
+          <Briefcase size={16} />
+          Browse Jobs
         </a>
 
-        <!-- Desktop Navigation -->
-        <div class="nav-links desktop-nav">
-          <a href="/jobs" class="nav-link {isJobPage ? 'active' : ''}">
-            <Briefcase size={16} />
-            Browse Jobs
-          </a>
-
-          {#if $auth.isAuthenticated}
-            {#if $auth.user?.id?.startsWith("test-employer") || $auth.user?.id?.startsWith("employer")}
-              <!-- Employer Navigation -->
-              <a href="/employer/jobs" class="nav-link">
-                <Briefcase size={16} />
-                Manage Jobs
-              </a>
-              <a href="/employer/jobs/create" class="nav-link">
-                <Plus size={16} />
-                Post Job
-              </a>
-            {:else}
-              <!-- Teenager Navigation -->
-              <a href="/dashboard" class="nav-link">
-                <User size={16} />
-                Dashboard
-              </a>
-              <a href="/resume" class="nav-link">
-                <File size={16} />
-                Resume Builder
-              </a>
-            {/if}
-            <button class="btn btn-outline" on:click={logout}>
-              <LogOut size={16} />
-              Logout
-            </button>
-          {:else}
-            <a href="/employer/jobs/create" class="btn btn-primary">
+        {#if $auth.isAuthenticated}
+          {#if $auth.user?.email?.includes("employer")}
+            <!-- Employer Navigation -->
+            <a href="/employer/jobs" class="nav-link">
               <Briefcase size={16} />
-              Post a Job
+              Manage Jobs
             </a>
-            <a href="/auth/login" class="btn btn-outline">Login</a>
-            <a href="/auth/signup" class="btn btn-primary">Sign Up</a>
-          {/if}
-        </div>
-
-        <!-- Mobile Menu Button -->
-        <button
-          class="mobile-menu-btn"
-          on:click={toggleMobileMenu}
-          aria-label="Toggle menu"
-        >
-          {#if isMobileMenuOpen}
-            <X size={24} />
+            <a href="/employer/jobs/create" class="nav-link">
+              <Plus size={16} />
+              Post Job
+            </a>
           {:else}
-            <Menu size={24} />
+            <!-- Teenager Navigation -->
+            <a href="/dashboard" class="nav-link">
+              <User size={16} />
+              Dashboard
+            </a>
+            <a href="/resume" class="nav-link">
+              <File size={16} />
+              Resume Builder
+            </a>
           {/if}
-        </button>
+          <button class="btn btn-outline" on:click={logout}>
+            <LogOut size={16} />
+            Logout
+          </button>
+        {:else}
+          <a href="/employer/jobs/create" class="btn btn-primary">
+            <Briefcase size={16} />
+            Post a Job
+          </a>
+          <a href="/auth/login" class="btn btn-outline">Login</a>
+          <a href="/auth/signup" class="btn btn-primary">Sign Up</a>
+        {/if}
       </div>
 
-      <!-- Mobile Navigation -->
-      {#if isMobileMenuOpen}
-        <div class="mobile-nav">
-          <a
-            href="/jobs"
-            class="mobile-nav-link {isJobPage ? 'active' : ''}"
-            on:click={closeMobileMenu}
-          >
-            <Briefcase size={20} />
-            Browse Jobs
-          </a>
+      <!-- Mobile Menu Button -->
+      <button
+        class="mobile-menu-btn"
+        on:click={toggleMobileMenu}
+        aria-label="Toggle menu"
+      >
+        {#if isMobileMenuOpen}
+          <X size={24} />
+        {:else}
+          <Menu size={24} />
+        {/if}
+      </button>
+    </div>
 
-          {#if $auth.isAuthenticated}
-            {#if $auth.user?.id?.startsWith("test-employer") || $auth.user?.id?.startsWith("employer")}
-              <!-- Employer Mobile Navigation -->
-              <a
-                href="/employer/jobs"
-                class="mobile-nav-link"
-                on:click={closeMobileMenu}
-              >
-                <Briefcase size={20} />
-                Manage Jobs
-              </a>
-              <a
-                href="/employer/jobs/create"
-                class="mobile-nav-link"
-                on:click={closeMobileMenu}
-              >
-                <Plus size={20} />
-                Post Job
-              </a>
-            {:else}
-              <!-- Teenager Mobile Navigation -->
-              <a
-                href="/dashboard"
-                class="mobile-nav-link"
-                on:click={closeMobileMenu}
-              >
-                <User size={20} />
-                Dashboard
-              </a>
-            {/if}
-            <button
-              class="btn btn-outline full-width"
-              on:click={() => {
-                logout();
-                closeMobileMenu();
-              }}
-            >
-              <LogOut size={20} />
-              Logout
-            </button>
-          {:else}
+    <!-- Mobile Navigation -->
+    {#if isMobileMenuOpen}
+      <div class="mobile-nav">
+        <a
+          href="/jobs"
+          class="mobile-nav-link {isJobPage ? 'active' : ''}"
+          on:click={closeMobileMenu}
+        >
+          <Briefcase size={20} />
+          Browse Jobs
+        </a>
+
+        {#if $auth.isAuthenticated}
+          {#if $auth.user?.email?.includes("employer")}
+            <!-- Employer Mobile Navigation -->
             <a
-              href="/employer/jobs/create"
-              class="btn btn-primary full-width"
+              href="/employer/jobs"
+              class="mobile-nav-link"
               on:click={closeMobileMenu}
             >
               <Briefcase size={20} />
-              Post a Job
+              Manage Jobs
             </a>
             <a
-              href="/auth/login"
-              class="btn btn-outline full-width"
-              on:click={closeMobileMenu}>Login</a
+              href="/employer/jobs/create"
+              class="mobile-nav-link"
+              on:click={closeMobileMenu}
             >
+              <Plus size={20} />
+              Post Job
+            </a>
+          {:else}
+            <!-- Teenager Mobile Navigation -->
             <a
-              href="/auth/signup"
-              class="btn btn-primary full-width"
-              on:click={closeMobileMenu}>Sign Up</a
+              href="/dashboard"
+              class="mobile-nav-link"
+              on:click={closeMobileMenu}
             >
+              <User size={20} />
+              Dashboard
+            </a>
           {/if}
-        </div>
-      {/if}
-    </div>
-  </nav>
-{/if}
+          <button
+            class="btn btn-outline full-width"
+            on:click={() => {
+              logout();
+              closeMobileMenu();
+            }}
+          >
+            <LogOut size={20} />
+            Logout
+          </button>
+        {:else}
+          <a
+            href="/employer/jobs/create"
+            class="btn btn-primary full-width"
+            on:click={closeMobileMenu}
+          >
+            <Briefcase size={20} />
+            Post a Job
+          </a>
+          <a
+            href="/auth/login"
+            class="btn btn-outline full-width"
+            on:click={closeMobileMenu}>Login</a
+          >
+          <a
+            href="/auth/signup"
+            class="btn btn-primary full-width"
+            on:click={closeMobileMenu}>Sign Up</a
+          >
+        {/if}
+      </div>
+    {/if}
+  </div>
+</nav>
 
 <main>
   <slot />

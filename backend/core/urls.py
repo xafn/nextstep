@@ -18,6 +18,13 @@ def api_root(request):
                 "login": "/api/accounts/login/",
                 "me": "/api/accounts/me/",
                 "token_refresh": "/api/accounts/token/refresh/",
+            },
+            "jobs": {
+                "list": "/api/jobs/jobs/",
+                "featured": "/api/jobs/jobs/featured/",
+                "recent": "/api/jobs/jobs/recent/",
+                "apply": "/api/jobs/jobs/{id}/apply/",
+                "applications": "/api/jobs/applications/",
             }
         }
     })
@@ -27,8 +34,8 @@ urlpatterns = [
     path("", api_root, name="api_root"),
     path("admin/", admin.site.urls),
     path("api/accounts/", include("apps.accounts.urls")),
+    path("api/jobs/", include("apps.jobs.urls")),
     # If you re-enable these later, uncomment:
-    # path("api/jobs/", include("apps.jobs.urls")),
     # path("api/checkins/", include("apps.checkins.urls")),
 ]
 

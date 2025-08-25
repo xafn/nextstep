@@ -39,61 +39,53 @@
         unlockAchievement,
         completeTask,
         addFinancialGoal,
+        loadGamificationDataForUser,
+        resetGamificationDataForUser,
     } from "$lib/stores/gamification.js";
     import { resumeStore } from "$lib/stores/resume.js";
+    import { jobsStore } from "$lib/stores/jobs.js";
+    import { auth } from "$lib/stores/auth.js";
 
-    // Sample user data - will come from Django backend
-    let user = {
-        firstName: "Alex",
-        lastName: "Johnson",
-        email: "alex.johnson@email.com",
-        joinDate: "January 2024",
-        applications: 5,
-        interviews: 2,
-        profileComplete: 85,
-        lastActive: "2 hours ago",
-        location: "Scarborough, ON",
-        preferredPay: "$18-25/hour",
-        skills: ["Customer Service", "Communication", "Organization"],
-        goals: ["Save for college", "Build resume", "Learn new skills"],
-    };
+    // User data from auth store
+    $: user = $auth.user
+        ? {
+              firstName:
+                  $auth.user.name.split(" ")[0] ||
+                  $auth.user.email.split("@")[0],
+              lastName: $auth.user.name.split(" ").slice(1).join(" ") || "",
+              email: $auth.user.email,
+              joinDate: "January 2024", // TODO: Get from user profile
+              applications: $jobsStore.applications.length,
+              interviews: $jobsStore.applications.filter(
+                  (app) =>
+                      app.status === "interview_scheduled" ||
+                      app.status === "interviewed",
+              ).length,
+              profileComplete: 85, // TODO: Calculate from profile data
+              lastActive: "2 hours ago", // TODO: Get from user activity
+              location: "Scarborough, ON", // TODO: Get from user profile
+              preferredPay: "$18-25/hour", // TODO: Get from user preferences
+              skills: ["Customer Service", "Communication", "Organization"], // TODO: Get from user profile
+              goals: ["Save for college", "Build resume", "Learn new skills"], // TODO: Get from user profile
+          }
+        : null;
 
-    // Sample application data
-    let applications = [
-        {
-            id: 1,
-            jobTitle: "Lawn Mowing & Yard Work",
-            company: "Green Thumb Services",
-            status: "Under Review",
-            appliedDate: "2024-01-15",
-            lastUpdated: "2024-01-18",
-            location: "Scarborough, ON",
-            pay: "$20-25/hour",
-            type: "Gig",
-        },
-        {
-            id: 2,
-            jobTitle: "Private Math Tutor",
-            company: "Toronto Math Academy",
-            status: "Interview Scheduled",
-            appliedDate: "2024-01-10",
-            lastUpdated: "2024-01-16",
-            location: "North York, ON",
-            pay: "$25-35/hour",
-            type: "Part-time",
-        },
-        {
-            id: 3,
-            jobTitle: "Lifeguard",
-            company: "Toronto Community Centres",
-            status: "Application Submitted",
-            appliedDate: "2024-01-20",
-            lastUpdated: "2024-01-20",
-            location: "Etobicoke, ON",
-            pay: "$18-22/hour",
-            type: "Part-time",
-        },
-    ];
+    // Applications from backend
+    $: applications = $jobsStore.applications.map((app) => ({
+        id: app.id,
+        jobTitle: app.job.title,
+        company: app.job.company,
+        status: app.status
+            .replace("_", " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase()),
+        appliedDate: app.applied_date,
+        lastUpdated: app.last_updated,
+        location: app.job.location,
+        pay: app.job.hourly_rate_display + "/hour",
+        type: app.job.job_type
+            .replace("-", " ")
+            .replace(/\b\w/g, (l) => l.toUpperCase()),
+    }));
 
     let mounted = false;
     let notifications: Array<{
@@ -194,29 +186,43 @@
         );
     }
 
-    onMount(() => {
+    onMount(async () => {
         mounted = true;
+
+        // Load user applications from backend
+        if ($auth.isAuthenticated) {
+            await jobsStore.loadApplications();
+
+            // Load user-specific gamification data
+            loadGamificationDataForUser($auth.user.email);
+
+            // Reset gamification data for itsalfanzo@gmail.com to start fresh
+            if ($auth.user.email === "itsalfanzo@gmail.com") {
+                console.log(
+                    "Resetting gamification data for itsalfanzo@gmail.com",
+                );
+                resetGamificationDataForUser($auth.user.email);
+            }
+        }
+
         updateStreak();
         checkAchievements();
 
-        // Add some demo data
-        setTimeout(() => {
-            // Add a financial goal for demo
-            if ($gamificationStore.financialGoals.length === 0) {
-                addFinancialGoal({
-                    title: "Save for College",
-                    targetAmount: 5000,
-                    currentAmount: 1200,
-                    deadline: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-                    completed: false,
-                });
-            }
+        // Pass user email to gamification functions
+        if ($auth.isAuthenticated) {
+            const userEmail = $auth.user.email;
+            // Update functions to use user-specific data
+            const originalAddXP = addXP;
+            const originalUnlockAchievement = unlockAchievement;
+            const originalCompleteTask = completeTask;
 
-            // Add some XP to make it more interesting
-            if ($gamificationStore.xp < 100) {
-                addXP(150);
-            }
-        }, 1000);
+            // Override functions to include user email
+            window.addXP = (amount: number) => originalAddXP(amount, userEmail);
+            window.unlockAchievement = (id: string) =>
+                originalUnlockAchievement(id, userEmail);
+            window.completeTask = (id: string) =>
+                originalCompleteTask(id, userEmail);
+        }
     });
 </script>
 
@@ -254,7 +260,7 @@
                             >Level {$currentLevel.level} - {$currentLevel.title}</span
                         >
                     </div>
-                    <h1>Hello, {user.firstName}! 👋</h1>
+                    <h1>Hello, {user?.firstName || "there"}! 👋</h1>
                     <p>
                         You're on your way to becoming a {$nextLevel?.title ||
                             "career champion"}!
@@ -262,11 +268,14 @@
                     <div class="user-meta">
                         <div class="meta-item">
                             <MapPin size={16} />
-                            <span>{user.location}</span>
+                            <span>{user?.location || "Location not set"}</span>
                         </div>
                         <div class="meta-item">
                             <Calendar size={16} />
-                            <span>Member since {user.joinDate}</span>
+                            <span
+                                >Member since {user?.joinDate ||
+                                    "recently"}</span
+                            >
                         </div>
                         <div class="meta-item">
                             <Flame size={16} />
@@ -372,7 +381,7 @@
                                 <User size={24} />
                             </div>
                             <div class="stat-content">
-                                <h3>{user.profileComplete}%</h3>
+                                <h3>{user?.profileComplete || 0}%</h3>
                                 <p>Profile Complete</p>
                                 <div class="stat-trend">
                                     <Target size={14} />
@@ -386,7 +395,7 @@
                                 <DollarSign size={24} />
                             </div>
                             <div class="stat-content">
-                                <h3>{user.preferredPay}</h3>
+                                <h3>{user?.preferredPay || "$15-20/hour"}</h3>
                                 <p>Target Pay</p>
                                 <div class="stat-trend">
                                     <Star size={14} />
